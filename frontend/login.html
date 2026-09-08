@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Law Enforcement Portal - Secure Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex items-center justify-center">
+    
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl">
+        <div class="text-center mb-8">
+            <div class="inline-block p-3 rounded-full bg-slate-800 mb-3 border border-slate-700">
+                <div class="h-6 w-6 bg-red-500 rounded-full animate-pulse"></div>
+            </div>
+            <h1 class="text-2xl font-bold tracking-wider text-emerald-400">PROJECT NETWORTH</h1>
+            <p class="text-sm text-slate-400 mt-1">RESTRICTED ACCESS PORTAL</p>
+        </div>
+
+        <form id="login-form" class="space-y-5">
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-1">Badge Number (Username)</label>
+                <input type="text" id="username" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-emerald-500" value="badge123" required>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-400 mb-1">Passcode</label>
+                <input type="password" id="password" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-emerald-500" value="securepassword" required>
+            </div>
+            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition mt-4">
+                Authenticate & Enter
+            </button>
+            <p id="error-message" class="text-red-500 text-sm text-center hidden mt-3">Invalid credentials.</p>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-message');
+
+            // FastAPI OAuth2 expects form URL-encoded data, not JSON
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            try {
+                const response = await fetch('http://localhost:8000/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Save the token securely in the browser
+                    localStorage.setItem('access_token', data.access_token);
+                    // Redirect to the dashboard
+                    window.location.href = 'index.html';
+                } else {
+                    errorMsg.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Login failed:", error);
+                errorMsg.innerText = "Connection to secure server failed.";
+                errorMsg.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

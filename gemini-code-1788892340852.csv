@@ -1,0 +1,6 @@
+id,entity_type,identifier,label,risk_score,notes
+1,Wallet,0x71C865239a1b4d893f32e9f82d1234567890ABCD,Primary Threat Actor Wallet,95,Associated with ransomware deployment
+2,Wallet,0x34F901284bcDe78901234567890abcdef1234567,Intermediary Mixing Wallet,80,Used for coin-mixing and fund splitting
+3,IP_Address,185.220.101.5,Tor Exit Node / Command Server,90,Origin of automated scanning and credential stuffing
+4,Exchange,EX_BINANCE_01,Binance Deposit Account (Hacker Cashout),85,Target endpoint for fiat conversion
+5,Malware_Hash,a3b4c5d6e7f8901234567890abcdef1234567890abcdef1234567890abcdef1234,Ransomware Payload SHA-256,100,Encrypted system locks deployed during incident

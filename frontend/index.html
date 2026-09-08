@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Law Enforcement Intelligence Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
     <!-- Top Navigation Bar -->
@@ -13,7 +14,10 @@
             <div class="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
             <span class="text-xl font-bold tracking-wider">PROJECT NETWORTH | LAW ENFORCEMENT PORTAL</span>
         </div>
-        <div class="text-sm text-slate-400">Status: <span class="text-emerald-400 font-semibold">Secure Connection Live</span></div>
+        <div class="flex items-center space-x-4">
+            <div class="text-sm text-slate-400">Status: <span class="text-emerald-400 font-semibold">Secure Connection Live</span></div>
+            <button onclick="logout()" class="text-xs bg-red-900/50 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded transition border border-red-800">Secure Logout</button>
+        </div>
     </header>
 
     <!-- Main Content Grid -->
@@ -22,14 +26,14 @@
         <!-- Left Panel: Upload Intelligence -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">1. Intelligence Ingestion</h2>
-            <p class="text-xs text-slate-400 mb-4">Upload raw FIR text logs, CDR spreadsheets, or transaction records for instant graph mapping.</p>
-            <div class="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-emerald-500 transition cursor-pointer">
-                <p class="text-sm text-slate-300">Drag & drop files here, or <span class="text-emerald-400 underline">browse</span></p>
-                <span class="text-[10px] text-slate-500 mt-1 block">Supports .csv, .txt, .pdf</span>
-            </div>
-            <button class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-sm transition">
+            <p class="text-xs text-slate-400 mb-4">Upload raw CSV records for instant graph mapping.</p>
+            
+            <input type="file" id="file-upload" class="mb-4 block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-emerald-400 hover:file:bg-slate-700 cursor-pointer"/>
+            
+            <button onclick="uploadFile()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-sm transition cursor-pointer">
                 Process Intelligence
             </button>
+            <p id="upload-status" class="text-xs text-emerald-400 mt-3 text-center"></p>
         </div>
 
         <!-- Center & Right Panel: Top Threat Intelligence Board -->
@@ -54,37 +58,139 @@
                 </table>
             </div>
         </div>
+
+        <!-- Graph Visualization Panel -->
+        <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg mt-2">
+            <h2 class="text-lg font-semibold mb-3 text-emerald-400">3. Interactive Intelligence Map</h2>
+            <p class="text-xs text-slate-400 mb-4">Drag nodes to explore. Red = Burner Phones, Blue = Financial Accounts.</p>
+            <div id="network-canvas" class="w-full h-[500px] border border-slate-700 rounded-lg bg-slate-950/50 shadow-inner"></div>
+        </div>
     </main>
 
-    <!-- JavaScript to Fetch Data from FastAPI Backend -->
+    <!-- JavaScript to Fetch and Upload Data -->
     <script>
-        async function fetchIntelligence() {
+        // 1. Check for token on load. If missing, kick back to login!
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            window.location.href = 'login.html';
+        }
+
+        // Helper function to build headers with the security token
+        function getAuthHeaders() {
+            return { 'Authorization': `Bearer ${token}` };
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-upload');
+            const statusText = document.getElementById('upload-status');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return alert("Please select an intelligence file first.");
+            }
+            
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            
+            statusText.innerText = "Encrypting & Uploading...";
+            statusText.className = "text-xs text-slate-400 mt-3 text-center";
+            
             try {
-                const response = await fetch('http://localhost:8000/api/network-stats');
+                const response = await fetch('http://localhost:8000/api/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+                
+                if (response.status === 401) return window.location.href = 'login.html';
+                
                 const data = await response.json();
-                const tbody = document.getElementById('suspect-table-body');
+                statusText.innerText = data.message;
+                statusText.className = "text-xs text-emerald-400 mt-3 text-center";
+                
+                fetchIntelligence();
+                renderGraph();
+            } catch (error) {
+                statusText.innerText = "Upload failed.";
+                statusText.className = "text-xs text-red-500 mt-3 text-center";
+            }
+        }
+
+        async function fetchIntelligence() {
+            const tbody = document.getElementById('suspect-table-body');
+            try {
+                const response = await fetch('http://localhost:8000/api/network-stats', {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) return window.location.href = 'login.html';
+                
+                const data = await response.json();
                 tbody.innerHTML = '';
 
-                if (data.suspects.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-500">No active network data found. Run ingestion scripts.</td></tr>`;
+                if (!data.suspects || data.suspects.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-500">No active network data found in database.</td></tr>`;
                     return;
                 }
 
                 data.suspects.forEach(suspect => {
-                    const row = `<tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
+                    const row = `
+                    <tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
                         <td class="py-3 px-4 font-mono text-emerald-300">${suspect.id}</td>
-                        <td class="py-3 px-4"><span class="bg-red-950 text-red-400 px-2 py-1 rounded text-xs font-semibold">${suspect.connections} Links</span></td>
-                        <td class="py-3 px-4"><button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">Inspect Graph</button></td>
+                        <td class="py-3 px-4">
+                            <span class="bg-red-950 text-red-400 px-2 py-1 rounded text-xs font-semibold">${suspect.connections} Links</span>
+                        </td>
+                        <td class="py-3 px-4">
+                            <button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">Inspect Graph</button>
+                        </td>
                     </tr>`;
                     tbody.innerHTML += row;
                 });
             } catch (error) {
-                console.error("Error fetching intelligence data:", error);
-                document.getElementById('suspect-table-body').innerHTML = `<tr><td colspan="3" class="py-4 text-center text-red-400">Failed to connect to backend server. Is FastAPI running?</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-red-400">Secure connection failed.</td></tr>`;
             }
         }
 
-        fetchIntelligence();
+        async function renderGraph() {
+            try {
+                const response = await fetch('http://localhost:8000/api/graph-data', {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) return window.location.href = 'login.html';
+                
+                const data = await response.json();
+                const container = document.getElementById('network-canvas');
+                
+                const graphData = {
+                    nodes: new vis.DataSet(data.nodes),
+                    edges: new vis.DataSet(data.edges)
+                };
+                
+                const options = {
+                    nodes: { shape: 'dot', size: 20, font: { color: '#e2e8f0', size: 14 } },
+                    edges: { width: 2, font: { align: 'middle', color: '#94a3b8', size: 10, strokeWidth: 0 }, arrows: 'to', color: '#475569' },
+                    groups: {
+                        Phone: { color: { background: '#ef4444', border: '#991b1b' } },
+                        BankAccount: { color: { background: '#3b82f6', border: '#1e40af' } }
+                    },
+                    physics: { forceAtlas2Based: { gravitationalConstant: -50, centralGravity: 0.01, springLength: 100 }, solver: 'forceAtlas2Based' }
+                };
+                
+                new vis.Network(container, graphData, options);
+            } catch (error) {
+                console.error("Failed to render graph:", error);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchIntelligence();
+            renderGraph();
+        });
     </script>
 </body>
 </html>
