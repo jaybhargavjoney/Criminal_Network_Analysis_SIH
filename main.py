@@ -5,7 +5,7 @@ from neo4j import GraphDatabase
 # 1. Neo4j Connection Configuration
 URI = "bolt://localhost:7687"
 USER = "neo4j"
-PASSWORD = "janey7749"  # <-- Change this to your Neo4j password if different
+PASSWORD = "janey7749" # Replace with your Neo4j password
 
 # 2. Load the spaCy NLP model
 nlp = spacy.load("en_core_web_sm")

@@ -1,0 +1,3 @@
+sender_acc,receiver_acc,amount,timestamp
+ACC_001,ACC_002,50000,2026-03-12 12:00:00
+ACC_002,ACC_003,150000,2026-03-12 14:30:00

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Law Enforcement Intelligence Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
+    <!-- Top Navigation Bar -->
+    <header class="border-b border-slate-800 bg-slate-900 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span class="text-xl font-bold tracking-wider">PROJECT NETWORTH | LAW ENFORCEMENT PORTAL</span>
+        </div>
+        <div class="text-sm text-slate-400">Status: <span class="text-emerald-400 font-semibold">Secure Connection Live</span></div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Left Panel: Upload Intelligence -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+            <h2 class="text-lg font-semibold mb-3 text-emerald-400">1. Intelligence Ingestion</h2>
+            <p class="text-xs text-slate-400 mb-4">Upload raw FIR text logs, CDR spreadsheets, or transaction records for instant graph mapping.</p>
+            <div class="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-emerald-500 transition cursor-pointer">
+                <p class="text-sm text-slate-300">Drag & drop files here, or <span class="text-emerald-400 underline">browse</span></p>
+                <span class="text-[10px] text-slate-500 mt-1 block">Supports .csv, .txt, .pdf</span>
+            </div>
+            <button class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-sm transition">
+                Process Intelligence
+            </button>
+        </div>
+
+        <!-- Center & Right Panel: Top Threat Intelligence Board -->
+        <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+            <h2 class="text-lg font-semibold mb-3 text-emerald-400">2. High-Priority Suspects & Hubs</h2>
+            <p class="text-xs text-slate-400 mb-4">Identified via automated graph centrality algorithms tracking cross-channel interactions.</p>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase">
+                            <th class="py-3 px-4">Suspect / Entity ID</th>
+                            <th class="py-3 px-4">Cross-Network Connections</th>
+                            <th class="py-3 px-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="suspect-table-body">
+                        <tr>
+                            <td colspan="3" class="py-4 text-center text-slate-500">Loading intelligence data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript to Fetch Data from FastAPI Backend -->
+    <script>
+        async function fetchIntelligence() {
+            try {
+                const response = await fetch('http://localhost:8000/api/network-stats');
+                const data = await response.json();
+                const tbody = document.getElementById('suspect-table-body');
+                tbody.innerHTML = '';
+
+                if (data.suspects.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="py-4 text-center text-slate-500">No active network data found. Run ingestion scripts.</td></tr>`;
+                    return;
+                }
+
+                data.suspects.forEach(suspect => {
+                    const row = `<tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
+                        <td class="py-3 px-4 font-mono text-emerald-300">${suspect.id}</td>
+                        <td class="py-3 px-4"><span class="bg-red-950 text-red-400 px-2 py-1 rounded text-xs font-semibold">${suspect.connections} Links</span></td>
+                        <td class="py-3 px-4"><button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">Inspect Graph</button></td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                console.error("Error fetching intelligence data:", error);
+                document.getElementById('suspect-table-body').innerHTML = `<tr><td colspan="3" class="py-4 text-center text-red-400">Failed to connect to backend server. Is FastAPI running?</td></tr>`;
+            }
+        }
+
+        fetchIntelligence();
+    </script>
+</body>
+</html>
