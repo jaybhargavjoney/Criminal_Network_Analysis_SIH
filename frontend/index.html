@@ -6,6 +6,9 @@
     <title>Law Enforcement Intelligence Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
     <!-- Top Navigation Bar -->
@@ -16,6 +19,7 @@
         </div>
         <div class="flex items-center space-x-4">
             <div class="text-sm text-slate-400">Status: <span class="text-emerald-400 font-semibold">Secure Connection Live</span></div>
+            <button id="export-btn" onclick="generateReport()" class="text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-3 py-1.5 rounded transition border border-blue-700">Export Case Brief</button>
             <button onclick="logout()" class="text-xs bg-red-900/50 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded transition border border-red-800">Secure Logout</button>
         </div>
     </header>
@@ -222,6 +226,58 @@
             } catch (error) {
                 console.error("Path trace failed:", error);
                 alert("Failed to calculate path. Check connection.");
+            }
+        }
+
+        // --- NEW: PDF Generation Function ---
+        async function generateReport() {
+            const btn = document.getElementById('export-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "Compiling PDF...";
+            
+            try {
+                // 1. Take a snapshot of the graph canvas
+                const graphElement = document.getElementById('network-canvas');
+                const canvas = await html2canvas(graphElement, { scale: 2 });
+                const graphImg = canvas.toDataURL('image/png');
+
+                // 2. Initialize the PDF document
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // 3. Build the Document Header
+                doc.setFillColor(15, 23, 42); // Slate-900 background
+                doc.rect(0, 0, 210, 40, 'F');
+                
+                doc.setTextColor(52, 211, 153); // Emerald-400
+                doc.setFontSize(22);
+                doc.setFont("helvetica", "bold");
+                doc.text("PROJECT NETWORTH", 15, 20);
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.text("RESTRICTED LAW ENFORCEMENT INTELLIGENCE BRIEF", 15, 28);
+
+                // 4. Add Metadata
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(11);
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 15, 50);
+                doc.text(`Investigator ID: ${localStorage.getItem('access_token') ? 'Verified Token Present' : 'Unknown'}`, 15, 57);
+
+                // 5. Inject the Graph Snapshot
+                doc.setFont("helvetica", "bold");
+                doc.text("Network Topography Snapshot:", 15, 75);
+                doc.addImage(graphImg, 'PNG', 15, 80, 180, 100); // x, y, width, height
+
+                // 6. Trigger Download
+                doc.save(`Networth_Brief_${Date.now()}.pdf`);
+                
+            } catch (error) {
+                console.error("PDF Generation failed:", error);
+                alert("Failed to generate case brief.");
+            } finally {
+                btn.innerText = originalText;
             }
         }
 
