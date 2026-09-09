@@ -94,8 +94,8 @@ def get_graph_data(current_user: str = Depends(get_current_user)):
     with driver.session() as session:
         query = """
         MATCH (n)-[r]->(m)
-        RETURN id(n) AS source_id, coalesce(n.number, n.account_id) AS source_label, labels(n)[0] AS source_type,
-               id(m) AS target_id, coalesce(m.number, m.account_id) AS target_label, labels(m)[0] AS target_type,
+        RETURN id(n) AS source_id, coalesce(n.number, n.account_id, n.name, 'Unknown') AS source_label, labels(n)[0] AS source_type,
+               id(m) AS target_id, coalesce(m.number, m.account_id, m.name, 'Unknown') AS target_label, labels(m)[0] AS target_type,
                type(r) AS rel_type
         """
         result = session.run(query)

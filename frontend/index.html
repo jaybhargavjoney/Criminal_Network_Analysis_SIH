@@ -6,12 +6,10 @@
     <title>Law Enforcement Intelligence Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-    <!-- PDF Generation Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen">
-    <!-- Top Navigation Bar -->
     <header class="border-b border-slate-800 bg-slate-900 px-6 py-4 flex justify-between items-center">
         <div class="flex items-center space-x-3">
             <div class="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
@@ -24,10 +22,7 @@
         </div>
     </header>
 
-    <!-- Main Content Grid -->
     <main class="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        <!-- Left Panel: Upload Intelligence -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">1. Intelligence Ingestion</h2>
             <p class="text-xs text-slate-400 mb-4">Upload raw CSV records for instant graph mapping.</p>
@@ -40,7 +35,6 @@
             <p id="upload-status" class="text-xs text-emerald-400 mt-3 text-center"></p>
         </div>
 
-        <!-- Center & Right Panel: Top Threat Intelligence Board -->
         <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">2. High-Priority Suspects & Hubs</h2>
             <p class="text-xs text-slate-400 mb-4">Identified via automated graph centrality algorithms tracking cross-channel interactions.</p>
@@ -63,12 +57,10 @@
             </div>
         </div>
 
-        <!-- Graph Visualization Panel -->
         <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg mt-2">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">3. Interactive Intelligence Map</h2>
             <p class="text-xs text-slate-400 mb-4">Drag nodes to explore. Red = Burner Phones, Blue = Financial Accounts.</p>
             
-            <!-- Path Finding Controls -->
             <div class="mb-4 flex space-x-4 bg-slate-950/50 p-3 rounded-lg border border-slate-800">
                 <input type="text" id="source-node" placeholder="Suspect A (e.g., +91-... or ACC_...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
                 <input type="text" id="target-node" placeholder="Suspect B (e.g., +91-... or ACC_...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
@@ -79,7 +71,6 @@
         </div>
     </main>
 
-    <!-- JavaScript to Fetch and Upload Data -->
     <script>
         let network = null;
         const token = localStorage.getItem('access_token');
@@ -188,7 +179,8 @@
                     edges: { width: 2, font: { align: 'middle', color: '#94a3b8', size: 10, strokeWidth: 0 }, arrows: 'to', color: '#475569' },
                     groups: {
                         Phone: { color: { background: '#ef4444', border: '#991b1b' } },
-                        BankAccount: { color: { background: '#3b82f6', border: '#1e40af' } }
+                        BankAccount: { color: { background: '#3b82f6', border: '#1e40af' } },
+                        Person: { color: { background: '#10b981', border: '#047857' } }
                     },
                     physics: { forceAtlas2Based: { gravitationalConstant: -50, centralGravity: 0.01, springLength: 100 }, solver: 'forceAtlas2Based' }
                 };
@@ -229,27 +221,26 @@
             }
         }
 
-        // --- NEW: PDF Generation Function ---
         async function generateReport() {
             const btn = document.getElementById('export-btn');
             const originalText = btn.innerText;
             btn.innerText = "Compiling PDF...";
             
             try {
-                // 1. Take a snapshot of the graph canvas
                 const graphElement = document.getElementById('network-canvas');
-                const canvas = await html2canvas(graphElement, { scale: 2 });
+                const canvas = await html2canvas(graphElement, { 
+                    scale: 3, 
+                    backgroundColor: "#020617" 
+                });
                 const graphImg = canvas.toDataURL('image/png');
 
-                // 2. Initialize the PDF document
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
-                // 3. Build the Document Header
-                doc.setFillColor(15, 23, 42); // Slate-900 background
+                doc.setFillColor(15, 23, 42); 
                 doc.rect(0, 0, 210, 40, 'F');
                 
-                doc.setTextColor(52, 211, 153); // Emerald-400
+                doc.setTextColor(52, 211, 153); 
                 doc.setFontSize(22);
                 doc.setFont("helvetica", "bold");
                 doc.text("PROJECT NETWORTH", 15, 20);
@@ -259,18 +250,15 @@
                 doc.setFont("helvetica", "normal");
                 doc.text("RESTRICTED LAW ENFORCEMENT INTELLIGENCE BRIEF", 15, 28);
 
-                // 4. Add Metadata
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(11);
                 doc.text(`Generated: ${new Date().toLocaleString()}`, 15, 50);
                 doc.text(`Investigator ID: ${localStorage.getItem('access_token') ? 'Verified Token Present' : 'Unknown'}`, 15, 57);
 
-                // 5. Inject the Graph Snapshot
                 doc.setFont("helvetica", "bold");
                 doc.text("Network Topography Snapshot:", 15, 75);
-                doc.addImage(graphImg, 'PNG', 15, 80, 180, 100); // x, y, width, height
+                doc.addImage(graphImg, 'PNG', 15, 80, 180, 100); 
 
-                // 6. Trigger Download
                 doc.save(`Networth_Brief_${Date.now()}.pdf`);
                 
             } catch (error) {
