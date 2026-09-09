@@ -40,7 +40,6 @@
             const password = document.getElementById('password').value;
             const errorMsg = document.getElementById('error-message');
 
-            // FastAPI OAuth2 expects form URL-encoded data, not JSON
             const formData = new URLSearchParams();
             formData.append('username', username);
             formData.append('password', password);
@@ -54,9 +53,7 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    // Save the token securely in the browser
                     localStorage.setItem('access_token', data.access_token);
-                    // Redirect to the dashboard
                     window.location.href = 'index.html';
                 } else {
                     errorMsg.classList.remove('hidden');

@@ -63,14 +63,23 @@
         <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg mt-2">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">3. Interactive Intelligence Map</h2>
             <p class="text-xs text-slate-400 mb-4">Drag nodes to explore. Red = Burner Phones, Blue = Financial Accounts.</p>
+            
+            <!-- Path Finding Controls -->
+            <div class="mb-4 flex space-x-4 bg-slate-950/50 p-3 rounded-lg border border-slate-800">
+                <input type="text" id="source-node" placeholder="Suspect A (e.g., +91-... or ACC_...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
+                <input type="text" id="target-node" placeholder="Suspect B (e.g., +91-... or ACC_...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
+                <button onclick="tracePath()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-sm font-semibold transition whitespace-nowrap">Trace Path</button>
+            </div>
+
             <div id="network-canvas" class="w-full h-[500px] border border-slate-700 rounded-lg bg-slate-950/50 shadow-inner"></div>
         </div>
     </main>
 
     <!-- JavaScript to Fetch and Upload Data -->
     <script>
-        // 1. Check for token on load. If missing, kick back to login!
+        let network = null;
         const token = localStorage.getItem('access_token');
+        
         if (!token) {
             window.location.href = 'login.html';
         }
@@ -80,7 +89,6 @@
             window.location.href = 'login.html';
         }
 
-        // Helper function to build headers with the security token
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${token}` };
         }
@@ -145,7 +153,7 @@
                             <span class="bg-red-950 text-red-400 px-2 py-1 rounded text-xs font-semibold">${suspect.connections} Links</span>
                         </td>
                         <td class="py-3 px-4">
-                            <button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition">Inspect Graph</button>
+                            <button class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition" onclick="document.getElementById('source-node').value='${suspect.id}'">Set Source</button>
                         </td>
                     </tr>`;
                     tbody.innerHTML += row;
@@ -181,9 +189,39 @@
                     physics: { forceAtlas2Based: { gravitationalConstant: -50, centralGravity: 0.01, springLength: 100 }, solver: 'forceAtlas2Based' }
                 };
                 
-                new vis.Network(container, graphData, options);
+                network = new vis.Network(container, graphData, options);
             } catch (error) {
                 console.error("Failed to render graph:", error);
+            }
+        }
+
+        async function tracePath() {
+            const source = document.getElementById('source-node').value.trim();
+            const target = document.getElementById('target-node').value.trim();
+
+            if (!source || !target) return alert("Please enter both Suspect A and Suspect B.");
+
+            try {
+                const response = await fetch(`http://localhost:8000/api/shortest-path?source=${encodeURIComponent(source)}&target=${encodeURIComponent(target)}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.status === 401) return window.location.href = 'login.html';
+                
+                const data = await response.json();
+
+                if (data.path.length === 0) {
+                    alert("No connections found between these two targets.");
+                    network.unselectAll();
+                    return;
+                }
+
+                network.selectNodes(data.path);
+                network.focus(data.path[0], { scale: 1.2, animation: true });
+
+            } catch (error) {
+                console.error("Path trace failed:", error);
+                alert("Failed to calculate path. Check connection.");
             }
         }
 

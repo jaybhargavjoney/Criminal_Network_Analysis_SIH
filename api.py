@@ -22,7 +22,7 @@ app.add_middleware(
 # --- DATABASE SETUP ---
 URI = "bolt://localhost:7687"
 USER = "neo4j"
-PASSWORD = "janey7749"  # Replace with your Neo4j password
+PASSWORD = "janey7749" # <-- Put your real password here!
 driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
 
 # --- SECURITY SETTINGS ---
@@ -44,7 +44,6 @@ OFFICER_DB = {
 # --- SECURITY ROUTES (THE FRONT GATE) ---
 @app.post("/api/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    # 1. Check if the officer exists and password matches
     user = OFFICER_DB.get(form_data.username)
     if not user or user["password"] != form_data.password:
         raise HTTPException(
@@ -53,14 +52,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 2. Generate a secure JWT Token valid for 30 minutes
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"sub": user["username"], "exp": expire}
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     
     return {"access_token": encoded_jwt, "token_type": "bearer"}
 
-# The "Bouncer" function that checks for a valid token
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -72,7 +69,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Invalid or expired security token")
 
 
-# --- INTELLIGENCE ROUTES (NOW SECURED) ---
+# --- INTELLIGENCE ROUTES (SECURED) ---
 
 @app.get("/api/network-stats")
 def get_network_stats(current_user: str = Depends(get_current_user)):
@@ -112,6 +109,22 @@ def get_graph_data(current_user: str = Depends(get_current_user)):
                 nodes[t_id] = {"id": t_id, "label": str(record["target_label"]), "group": record["target_type"]}
             edges.append({"from": s_id, "to": t_id, "label": record["rel_type"]})
         return {"nodes": list(nodes.values()), "edges": edges}
+
+@app.get("/api/shortest-path")
+def get_shortest_path(source: str, target: str, current_user: str = Depends(get_current_user)):
+    with driver.session() as session:
+        query = """
+        MATCH (start) WHERE start.number = $source OR start.account_id = $source
+        MATCH (end) WHERE end.number = $target OR end.account_id = $target
+        MATCH path = shortestPath((start)-[*]-(end))
+        RETURN [n in nodes(path) | id(n)] AS path_nodes
+        """
+        result = session.run(query, source=source, target=target)
+        record = result.single()
+        
+        if record and record["path_nodes"]:
+            return {"path": record["path_nodes"]}
+        return {"path": []}
 
 @app.post("/api/upload")
 async def upload_intelligence(file: UploadFile = File(...), current_user: str = Depends(get_current_user)):
