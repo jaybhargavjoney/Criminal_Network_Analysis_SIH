@@ -23,15 +23,15 @@
     </header>
 
     <main class="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Left Panel: Upload Intelligence -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">1. Intelligence Ingestion</h2>
-            <p class="text-xs text-slate-400 mb-3">Upload raw CSV records for instant graph mapping.</p>
+            <p class="text-xs text-slate-400 mb-3">Upload raw CSV records mapping cross-case records.</p>
             
             <div class="mb-4 bg-slate-950 p-3 rounded border border-slate-800 text-[11px] text-slate-300 space-y-1">
-                <p class="font-semibold text-emerald-400">Required CSV Columns (Include Names):</p>
-                <p><span class="text-red-400 font-mono">Calls:</span> <span class="text-slate-400">caller, receiver, name, timestamp, duration</span></p>
-                <p><span class="text-blue-400 font-mono">Funds:</span> <span class="text-slate-400">sender_acc, receiver_acc, name, amount, timestamp</span></p>
+                <p class="font-semibold text-emerald-400">Required CSV Columns:</p>
+                <p><span class="text-purple-400 font-mono">Case Link:</span> <span class="text-slate-400">case_id, name</span></p>
+                <p><span class="text-red-400 font-mono">Calls:</span> <span class="text-slate-400">caller, receiver, timestamp, duration</span></p>
+                <p><span class="text-blue-400 font-mono">Funds:</span> <span class="text-slate-400">sender_acc, receiver_acc, amount</span></p>
             </div>
 
             <input type="file" id="file-upload" class="mb-4 block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-emerald-400 hover:file:bg-slate-700 cursor-pointer"/>
@@ -44,13 +44,13 @@
 
         <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">2. High-Priority Suspects & Hubs</h2>
-            <p class="text-xs text-slate-400 mb-4">Identified via automated graph centrality algorithms tracking cross-channel interactions.</p>
+            <p class="text-xs text-slate-400 mb-4">Identified via automated graph centrality algorithms tracking cross-case connections.</p>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase">
-                            <th class="py-3 px-4">Suspect / Entity ID</th>
+                            <th class="py-3 px-4">Suspect / Case / Entity ID</th>
                             <th class="py-3 px-4">Cross-Network Connections</th>
                             <th class="py-3 px-4">Action</th>
                         </tr>
@@ -66,11 +66,11 @@
 
         <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg mt-2">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">3. Interactive Intelligence Map</h2>
-            <p class="text-xs text-slate-400 mb-4">Drag nodes to explore. Red = Phones, Blue = Bank Accounts, Green = Persons.</p>
+            <p class="text-xs text-slate-400 mb-4">Purple = Cases, Green = Persons, Red = Phones, Blue = Accounts.</p>
             
             <div class="mb-4 flex space-x-4 bg-slate-950/50 p-3 rounded-lg border border-slate-800">
-                <input type="text" id="source-node" placeholder="Suspect A (e.g., Anita Rao or +91-...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
-                <input type="text" id="target-node" placeholder="Suspect B (e.g., Sunil Verma or ACC_...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
+                <input type="text" id="source-node" placeholder="Node A (e.g., Case 101 or Rajesh Kumar)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
+                <input type="text" id="target-node" placeholder="Node B (e.g., Case 204 or Anita Rao)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
                 <button onclick="tracePath()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-sm font-semibold transition whitespace-nowrap">Trace Path</button>
             </div>
 
@@ -185,9 +185,10 @@
                     nodes: { shape: 'dot', size: 20, font: { color: '#e2e8f0', size: 14 } },
                     edges: { width: 2, font: { align: 'middle', color: '#94a3b8', size: 10, strokeWidth: 0 }, arrows: 'to', color: '#475569' },
                     groups: {
+                        Case: { color: { background: '#9333ea', border: '#6b21a8' } },
+                        Person: { color: { background: '#10b981', border: '#047857' } },
                         Phone: { color: { background: '#ef4444', border: '#991b1b' } },
-                        BankAccount: { color: { background: '#3b82f6', border: '#1e40af' } },
-                        Person: { color: { background: '#10b981', border: '#047857' } }
+                        BankAccount: { color: { background: '#3b82f6', border: '#1e40af' } }
                     },
                     physics: { forceAtlas2Based: { gravitationalConstant: -50, centralGravity: 0.01, springLength: 100 }, solver: 'forceAtlas2Based' }
                 };
@@ -202,7 +203,7 @@
             const source = document.getElementById('source-node').value.trim();
             const target = document.getElementById('target-node').value.trim();
 
-            if (!source || !target) return alert("Please enter both Suspect A and Suspect B.");
+            if (!source || !target) return alert("Please enter both Node A and Node B.");
 
             try {
                 const response = await fetch(`http://localhost:8000/api/shortest-path?source=${encodeURIComponent(source)}&target=${encodeURIComponent(target)}`, {
