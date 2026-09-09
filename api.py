@@ -114,8 +114,8 @@ def get_graph_data(current_user: str = Depends(get_current_user)):
 def get_shortest_path(source: str, target: str, current_user: str = Depends(get_current_user)):
     with driver.session() as session:
         query = """
-        MATCH (start) WHERE start.number = $source OR start.account_id = $source
-        MATCH (end) WHERE end.number = $target OR end.account_id = $target
+        MATCH (start) WHERE start.number = $source OR start.account_id = $source OR start.name = $source
+        MATCH (end) WHERE end.number = $target OR end.account_id = $target OR end.name = $target
         MATCH path = shortestPath((start)-[*]-(end))
         RETURN [n in nodes(path) | id(n)] AS path_nodes
         """
