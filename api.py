@@ -10,7 +10,6 @@ from neo4j import GraphDatabase
 
 app = FastAPI()
 
-# Allow the frontend to talk to the backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,8 +21,36 @@ app.add_middleware(
 # --- DATABASE SETUP ---
 URI = "bolt://localhost:7687"
 USER = "neo4j"
-PASSWORD = "janey7749" # <-- Put your real password here!
+PASSWORD = "janey7749" # Your password
 driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
+
+# --- AUTOMATED CRIME SCENARIO SEEDER ---
+@app.on_event("startup")
+def seed_crime_network():
+    with driver.session() as session:
+        session.run("""
+            MERGE (p1:Person {name: "Anita Rao"})
+            MERGE (p2:Person {name: "Sunil Verma"})
+            MERGE (p3:Person {name: "Rajesh Kumar"})
+            
+            MERGE (ph1:Phone {number: "+91-9876543210"})
+            MERGE (ph2:Phone {number: "+91-9988776655"})
+            MERGE (ph3:Phone {number: "+91-4123456789"})
+            
+            MERGE (a1:BankAccount {account_id: "ACC_001"})
+            MERGE (a2:BankAccount {account_id: "ACC_002"})
+            MERGE (a3:BankAccount {account_id: "ACC_003"})
+            
+            MERGE (p1)-[:USES_PHONE]->(ph1)
+            MERGE (p2)-[:USES_PHONE]->(ph2)
+            MERGE (p3)-[:USES_PHONE]->(ph3)
+            
+            MERGE (ph1)-[:COMMUNICATED {timestamp: "2026-04-10 14:30:00", duration: 120}]->(ph2)
+            MERGE (ph2)-[:COMMUNICATED {timestamp: "2026-04-10 15:00:00", duration: 300}]->(ph3)
+            
+            MERGE (a1)-[:TRANSFERRED {amount: 50000.0, timestamp: "2026-04-10 16:00:00"}]->(a2)
+            MERGE (a2)-[:TRANSFERRED {amount: 25000.0, timestamp: "2026-04-10 17:30:00"}]->(a3)
+        """)
 
 # --- SECURITY SETTINGS ---
 SECRET_KEY = "super-secret-police-key"  
@@ -32,7 +59,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
 
-# Hackathon mock database for officers
 OFFICER_DB = {
     "badge123": {
         "username": "badge123",
@@ -41,7 +67,6 @@ OFFICER_DB = {
     }
 }
 
-# --- SECURITY ROUTES (THE FRONT GATE) ---
 @app.post("/api/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = OFFICER_DB.get(form_data.username)
@@ -68,23 +93,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired security token")
 
-
-# --- INTELLIGENCE ROUTES (SECURED) ---
-
 @app.get("/api/network-stats")
 def get_network_stats(current_user: str = Depends(get_current_user)):
     with driver.session() as session:
         query = """
         MATCH (n)
-        OPTIONAL MATCH (n)-[:COMMUNICATED|TRANSFERRED]-(m)
-        RETURN n.number AS phone, n.account_id AS account, count(m) AS connections
+        OPTIONAL MATCH (n)-[:COMMUNICATED|TRANSFERRED|USES_PHONE|OWNS_ACCOUNT]-(m)
+        RETURN n.number AS phone, n.account_id AS account, n.name AS name, count(m) AS connections
         ORDER BY connections DESC
         LIMIT 10
         """
         result = session.run(query)
         nodes = []
         for record in result:
-            identifier = record["phone"] if record["phone"] else record["account"]
+            identifier = record["phone"] if record["phone"] else (record["account"] if record["account"] else record["name"])
             if identifier:
                 nodes.append({"id": identifier, "connections": record["connections"]})
         return {"suspects": nodes}
@@ -135,21 +157,31 @@ async def upload_intelligence(file: UploadFile = File(...), current_user: str = 
         
     try:
         df = pd.read_csv(file_path)
+        columns = df.columns.str.lower().tolist()
+        
         with driver.session() as session:
-            if "cdr" in file.filename.lower():
+            if "caller" in columns and "receiver" in columns:
                 for _, row in df.iterrows():
+                    person_name = str(row['name']) if 'name' in columns and pd.notna(row['name']) else "Unknown Suspect"
                     session.run("""
+                        MERGE (p:Person {name: $pname})
                         MERGE (c1:Phone {number: $caller})
                         MERGE (c2:Phone {number: $receiver})
+                        MERGE (p)-[:USES_PHONE]->(c1)
                         MERGE (c1)-[:COMMUNICATED {timestamp: $timestamp, duration: $duration}]->(c2)
-                    """, caller=row['caller'], receiver=row['receiver'], timestamp=str(row['timestamp']), duration=int(row['duration']))
-            elif "transaction" in file.filename.lower():
+                    """, pname=person_name, caller=str(row['caller']), receiver=str(row['receiver']), timestamp=str(row.get('timestamp', '')), duration=int(row.get('duration', 0)))
+            
+            if "sender_acc" in columns and "receiver_acc" in columns:
                 for _, row in df.iterrows():
+                    person_name = str(row['name']) if 'name' in columns and pd.notna(row['name']) else "Unknown Holder"
                     session.run("""
+                        MERGE (p:Person {name: $pname})
                         MERGE (a1:BankAccount {account_id: $sender})
                         MERGE (a2:BankAccount {account_id: $receiver})
+                        MERGE (p)-[:OWNS_ACCOUNT]->(a1)
                         MERGE (a1)-[:TRANSFERRED {amount: $amount, timestamp: $timestamp}]->(a2)
-                    """, sender=row['sender_acc'], receiver=row['receiver_acc'], amount=float(row['amount']), timestamp=str(row['timestamp']))
-        return {"message": f"Intelligence file '{file.filename}' uploaded and mapped!"}
+                    """, pname=person_name, sender=str(row['sender_acc']), receiver=str(row['receiver_acc']), amount=float(row.get('amount', 0.0)), timestamp=str(row.get('timestamp', '')))
+
+        return {"message": f"Master intelligence file '{file.filename}' processed successfully!"}
     except Exception as e:
-        return {"message": f"File saved, but graph ingestion failed. Error: {str(e)}"}
+        return {"message": f"File saved, but parsing failed. Error: {str(e)}"}

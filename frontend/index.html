@@ -23,10 +23,17 @@
     </header>
 
     <main class="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Left Panel: Upload Intelligence -->
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">1. Intelligence Ingestion</h2>
-            <p class="text-xs text-slate-400 mb-4">Upload raw CSV records for instant graph mapping.</p>
+            <p class="text-xs text-slate-400 mb-3">Upload raw CSV records for instant graph mapping.</p>
             
+            <div class="mb-4 bg-slate-950 p-3 rounded border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                <p class="font-semibold text-emerald-400">Required CSV Columns (Include Names):</p>
+                <p><span class="text-red-400 font-mono">Calls:</span> <span class="text-slate-400">caller, receiver, name, timestamp, duration</span></p>
+                <p><span class="text-blue-400 font-mono">Funds:</span> <span class="text-slate-400">sender_acc, receiver_acc, name, amount, timestamp</span></p>
+            </div>
+
             <input type="file" id="file-upload" class="mb-4 block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-emerald-400 hover:file:bg-slate-700 cursor-pointer"/>
             
             <button onclick="uploadFile()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-sm transition cursor-pointer">
@@ -59,7 +66,7 @@
 
         <div class="md:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg mt-2">
             <h2 class="text-lg font-semibold mb-3 text-emerald-400">3. Interactive Intelligence Map</h2>
-            <p class="text-xs text-slate-400 mb-4">Drag nodes to explore. Red = Burner Phones, Blue = Financial Accounts.</p>
+            <p class="text-xs text-slate-400 mb-4">Drag nodes to explore. Red = Phones, Blue = Bank Accounts, Green = Persons.</p>
             
             <div class="mb-4 flex space-x-4 bg-slate-950/50 p-3 rounded-lg border border-slate-800">
                 <input type="text" id="source-node" placeholder="Suspect A (e.g., Anita Rao or +91-...)" class="w-1/2 bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none">
